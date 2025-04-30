@@ -2,7 +2,7 @@ import streamlit as st
 import openai
 
 # API Key 입력
-api_key = st.text_area("🔑 OpenAI API Key", type="password")
+api_key = st.text_input("🔑 OpenAI API Key", type="password")
 
 # 질문 입력
 user_input = st.text_area("❓ 질문을 입력하세요:")
