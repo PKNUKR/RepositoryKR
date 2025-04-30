@@ -17,7 +17,7 @@ if st.button("답변 받기"):
             client = openai.OpenAI(api_key=api_key)
 
             response = client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4.1-mini",
                 messages=[{"role": "user", "content": user_input}]
             )
 
