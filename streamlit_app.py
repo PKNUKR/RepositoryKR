@@ -1,29 +1,31 @@
 import streamlit as st
 from openai import OpenAI
+import sys
+import io
+
+# stdout을 UTF-8로 설정 (ascii 오류 방지)
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 st.title("GPT 응답 웹 앱")
 
-# API 키 입력 및 session_state에 저장
+# API Key 저장
 if 'api_key' not in st.session_state:
     st.session_state.api_key = ""
 
 api_key_input = st.text_input("Enter OpenAI API Key", type="password", value=st.session_state.api_key)
-st.session_state.api_key = api_key_input  # 페이지 이동 시에도 유지
+st.session_state.api_key = api_key_input
 
-# 사용자 질문 입력
 question = st.text_input("Ask a question:")
 
-# 응답 캐시 함수
 @st.cache_data(show_spinner="Thinking...")
 def get_response(api_key, prompt):
     client = OpenAI(api_key=api_key)
     response = client.chat.completions.create(
-        model="gpt-4",  # 과제에서 요구한 gpt-4.1-mini 역할을 수행
+        model="gpt-4",  # 실제로는 gpt-4 사용
         messages=[{"role": "user", "content": prompt}]
     )
     return response.choices[0].message.content
 
-# 응답 출력
 if st.session_state.api_key and question:
     try:
         answer = get_response(st.session_state.api_key, question)
