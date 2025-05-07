@@ -1,7 +1,9 @@
 import streamlit as st
 from openai import OpenAI
 
-st.title("GPT 응답 웹 앱")
+st.set_page_config(page_title="ChatBot")
+
+st.title("Chat with GPT")
 
 # API Key 저장
 if 'api_key' not in st.session_state:
@@ -10,21 +12,37 @@ if 'api_key' not in st.session_state:
 api_key_input = st.text_input("Enter OpenAI API Key", type="password", value=st.session_state.api_key)
 st.session_state.api_key = api_key_input
 
-question = st.text_input("Ask a question:")
+# 대화 기록 저장
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-@st.cache_data(show_spinner="Thinking...")
-def get_response(api_key, prompt):
+# Clear 버튼
+if st.button("Clear"):
+    st.session_state.messages = []
+
+# 사용자 입력
+user_input = st.text_input("You: ", key="user_input")
+
+# 응답 함수
+def get_response(api_key, messages):
     client = OpenAI(api_key=api_key)
     response = client.chat.completions.create(
-        model="gpt-4",  # 실제로는 gpt-4 사용, 과제에서는 gpt-4.1-mini라고 설명
-        messages=[{"role": "user", "content": prompt}]
+        model="gpt-4",  # or gpt-3.5-turbo for lower cost
+        messages=messages
     )
     return response.choices[0].message.content
 
-if st.session_state.api_key and question:
+# 대화 처리
+if user_input:
+    st.session_state.messages.append({"role": "user", "content": user_input})
     try:
-        answer = get_response(st.session_state.api_key, question)
-        st.write("Answer:", answer)
+        reply = get_response(st.session_state.api_key, st.session_state.messages)
+        st.session_state.messages.append({"role": "assistant", "content": reply})
     except Exception as e:
-        # 예외 메시지를 ASCII로만 출력해서 인코딩 문제 회피
-        st.error("API Error: " + str(e).encode("ascii", errors="ignore").decode())
+        reply = "API Error: " + str(e).encode("ascii", errors="ignore").decode()
+        st.session_state.messages.append({"role": "assistant", "content": reply})
+
+# 채팅 출력
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
