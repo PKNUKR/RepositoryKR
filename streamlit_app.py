@@ -14,11 +14,9 @@ CHUNK_CHAR_LEN   = 6000
 LANG_HINT        = None
 # ----------------------
 
-# OpenAI 클라이언트
 def get_client(api_key: str) -> OpenAI:
     return OpenAI(api_key=api_key)
 
-# 유튜브 오디오 다운로드
 def download_audio_from_youtube(url: str, outdir: Path) -> Path:
     ydl_opts = {
         "format": "bestaudio/best",
@@ -37,7 +35,6 @@ def download_audio_from_youtube(url: str, outdir: Path) -> Path:
             return f
     raise RuntimeError("오디오 다운로드 실패")
 
-# 로컬 영상 → wav 추출
 def extract_audio(video_path: Path, out_audio: Path) -> Path:
     clip = VideoFileClip(str(video_path))
     tmp_wav = out_audio.with_suffix(".wav")
@@ -51,7 +48,6 @@ def extract_audio(video_path: Path, out_audio: Path) -> Path:
     clip.close()
     return tmp_wav
 
-# 전사
 def transcribe_audio(client: OpenAI, audio_path: Path) -> str:
     with open(audio_path, "rb") as f:
         resp = client.audio.transcriptions.create(
@@ -62,7 +58,6 @@ def transcribe_audio(client: OpenAI, audio_path: Path) -> str:
         )
     return getattr(resp, "text", str(resp))
 
-# 텍스트 chunk 분할
 def chunk_text(text: str, chunk_size: int = CHUNK_CHAR_LEN):
     text = text.strip()
     chunks = []
@@ -78,7 +73,6 @@ def chunk_text(text: str, chunk_size: int = CHUNK_CHAR_LEN):
         start = end
     return chunks
 
-# chunk 요약
 def summarize_map(client: OpenAI, chunk: str, lang: str = "한국어") -> str:
     prompt = f"""당신은 뛰어난 요약가입니다.
 아래 전사 텍스트를 {lang}로 핵심 bullet 5~8개로 요약하고, 중요한 숫자/고유명사를 보존하세요.
@@ -92,7 +86,6 @@ def summarize_map(client: OpenAI, chunk: str, lang: str = "한국어") -> str:
     )
     return resp.output_text
 
-# 최종 통합 요약
 def summarize_reduce(client: OpenAI, bullets, lang: str = "한국어") -> str:
     joined = "\n\n---\n\n".join(bullets)
     prompt = f"""다음은 여러 덩어리에서 뽑은 핵심 bullet들입니다. 이를 통합해 최종 요약을 만들어 주세요.
@@ -118,6 +111,7 @@ def summarize_reduce(client: OpenAI, bullets, lang: str = "한국어") -> str:
 st.set_page_config(page_title="🎬 영상 요약기", layout="wide")
 st.title("🎬 영상 요약 AI")
 
+# 🔑 API Key 입력은 Streamlit Cloud의 Secrets 기능 권장
 api_key = st.text_input("🔑 OpenAI API Key", type="password")
 
 src_type = st.radio("입력 방식 선택", ["유튜브 링크", "로컬 파일"])
@@ -131,7 +125,7 @@ else:
 
 if st.button("요약 시작"):
     if not api_key:
-        st.error("API Key를 입력하세요.")
+        st.error("API Key를 입력하세요 (또는 Streamlit Secrets 사용).")
         st.stop()
 
     client = get_client(api_key)
@@ -139,7 +133,6 @@ if st.button("요약 시작"):
     with tempfile.TemporaryDirectory() as td:
         tdir = Path(td)
 
-        # 1. 오디오 추출
         if youtube_url:
             st.info("유튜브 오디오 다운로드 중...")
             audio_path = download_audio_from_youtube(youtube_url, tdir)
@@ -153,11 +146,9 @@ if st.button("요약 시작"):
             st.error("영상 소스를 제공하세요.")
             st.stop()
 
-        # 2. 전사
         st.info("음성 → 텍스트 전사 중...")
         transcript = transcribe_audio(client, audio_path)
 
-        # 3. 분할 요약
         st.info("부분 요약 생성 중...")
         chunks = chunk_text(transcript, CHUNK_CHAR_LEN)
         bullets = []
@@ -166,11 +157,9 @@ if st.button("요약 시작"):
             bullets.append(summarize_map(client, c, lang="한국어"))
             progress.progress(i / len(chunks))
 
-        # 4. 최종 요약
         st.info("최종 요약 통합 중...")
         final_summary = summarize_reduce(client, bullets, lang="한국어")
 
-        # 결과 표시
         st.subheader("📌 최종 요약")
         st.markdown(final_summary)
 
